@@ -1,14 +1,14 @@
-from weather import BME680Sensor, MHZ19BSensor
-from weather import Weather
-from config import Config
-from lights import Lights
+from src.weather import Weather
+from src.weather import BME680Sensor, MHZ19BSensor
+from src.config import Config
+from src.lights import Lights
 from machine import Pin
 import urequests
 # from wifi import AccessPoint
-from wifi import Connection
+from src.wifi import Connection
 import gc
 import time
-import util
+from src import util
 import sys
 import uerrno
 
@@ -35,20 +35,20 @@ class WeatherHandler:
 
     # send data to the sheet
     def handle(self, data):
-      url = f"{self.url}/api/v2/write?org={self.org}&bucket={self.bucket}&precision=ns"
+      url = f"http://{self.url}/api/v2/write?org={self.org}&bucket={self.bucket}&precision=ns"
       headers = {
         "Authorization": f"Token {self.token}",
         "Content-Type": "text/plain; charset=utf-8",
         "Accept": "application/json"
       }
-      print(f"data in weatherhandler {data}")
-      # data = f'''
-      #   airSensors,sensor_id=TLM0201 temperature={temperature},humidity={humidity},pressure={pressure},gas={gas}
-      # '''
+      print(f"data in weatherhandler {data['temperature']}")
+      data = f'''
+        airSensors,sensor_id=TLM0201 temperature={data['temperature']},humidity={data['humidity']},pressure={data['pressure']},gas={data['gas']}
+      '''
 
-      # response = urequests.post(url, headers=headers, data=data)
-      # print(response.text)
-      # response.close()
+      response = urequests.post(url, headers=headers, data=data)
+      print(response.text)
+      response.close()
 
 
 # enable garbage collection
@@ -56,8 +56,7 @@ gc.enable()
 print('garbage collection threshold: ' + str(gc.threshold()))
 
 # load configuration for a file
-config = Config('main.conf', 'key.json')
-
+config = Config('main.conf')
 # initialize an interface to LEDs
 lights = Lights(config.get('wifi_led_pid'),
                 config.get('error_led_pid'),
@@ -74,16 +73,16 @@ weather_handler = WeatherHandler(
 # initialize available sensors and add them to a controller
 weather = Weather(config.get('measurement_interval'),
                   weather_handler)
-if config.get('bme680_sda_pin') and config.get('bme680_scl_pin'):
-    weather.add(BME680Sensor(config.get('bme680_sda_pin'), config.get('bme680_scl_pin')))
-    print('registered a BME680 sensor')
+# if config.get('bme680_sda_pin') and config.get('bme680_scl_pin'):
+weather.add(BME680Sensor(config.get('bme680_sda_pin'), config.get('bme680_scl_pin')))
+print('registered a BME680 sensor')
 
-if config.get('mhz19b_tx_pin') and config.get('mhz19b_rx_pin'):
-    weather.add(MHZ19BSensor(config.get('mhz19b_tx_pin'),
-                             config.get('mhz19b_rx_pin'),
-                             lights,
-                             config.get('co2_threshold')))
-    print('registered a MH-Z19B sensor')
+# if config.get('mhz19b_tx_pin') and config.get('mhz19b_rx_pin'):
+#     weather.add(MHZ19BSensor(config.get('mhz19b_tx_pin'),
+#                              config.get('mhz19b_rx_pin'),
+#                              lights,
+#                              config.get('co2_threshold')))
+#     print('registered a MH-Z19B sensor')
 
 # initialize a switch which turns on the configuration mode
 # if the switch changes its state, then the board is going to reboot immediately
